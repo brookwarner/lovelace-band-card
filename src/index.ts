@@ -1,6 +1,6 @@
 import { BandCard } from "./band-card.js";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 window.customCards = window.customCards || [];
 window.customCards.push({

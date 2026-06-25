@@ -61,6 +61,29 @@ Notes:
   picks the thumb (right = upper/night, left = lower/day) so they can be pulled
   apart. For values that often coincide, `interaction: both` adds ± buttons.
 
+## Read-only mode (e.g. a daylight band)
+
+Set `readonly: true` to drop the thumbs and just display the band + live marker —
+useful for values you can't set, like sunrise/sunset. Values can be read from an
+entity **attribute** (`*_attribute`), and `value_type: time` puts non-`input_datetime`
+sources on the 24-hour axis. Time parsing accepts `HH:MM`, 12-hour `h:mm AM/PM`,
+and ISO datetimes (converted to local time-of-day).
+
+```yaml
+type: custom:band-card
+mode: band
+name: Daylight
+icon: mdi:weather-sunset-up
+color: amber
+readonly: true
+value_type: time
+lower_entity: sun.sun
+lower_attribute: next_rising      # ISO timestamp -> local time
+upper_entity: sun.sun
+upper_attribute: next_setting
+current_entity: sensor.time       # live "now" marker (green inside daylight, red outside)
+```
+
 ## Development
 
 ```bash

@@ -29,6 +29,13 @@ interface BandCardConfig {
   min?: number;
   max?: number;
   step?: number;
+  readonly?: boolean;
+  value_type?: "time" | "number";
+  lower_attribute?: string;
+  upper_attribute?: string;
+  day_attribute?: string;
+  night_attribute?: string;
+  current_attribute?: string;
 }
 
 interface Scale {
@@ -49,6 +56,9 @@ export class BandCard extends LitElement {
 
   private _entA = "";
   private _entB = "";
+  private _attrA?: string;
+  private _attrB?: string;
+  private _readonly = false;
   private _interaction: Interaction = "drag";
   private _dragging: string | null = null;
   private _tipTimer?: number;
@@ -70,9 +80,12 @@ export class BandCard extends LitElement {
       throw new Error(`band-card: unknown mode '${config.mode}'`);
     }
     this._config = config;
+    this._readonly = !!config.readonly;
     this._interaction = config.interaction || "drag";
     this._entA = config.mode === "band" ? config.lower_entity! : config.day_entity!;
     this._entB = config.mode === "band" ? config.upper_entity! : config.night_entity!;
+    this._attrA = config.mode === "band" ? config.lower_attribute : config.day_attribute;
+    this._attrB = config.mode === "band" ? config.upper_attribute : config.night_attribute;
   }
 
   public getCardSize(): number {
@@ -88,12 +101,40 @@ export class BandCard extends LitElement {
   // ---- value/scale helpers -------------------------------------------------
 
   private _isTime(): boolean {
-    return this._entA.startsWith("input_datetime.");
+    return this._config!.value_type === "time" || this._entA.startsWith("input_datetime.");
   }
 
   private _parseTime(str: string): number {
     const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(str);
     return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+  }
+
+  // Flexible time parse: HH:MM[:SS], 12-hour "h:mm AM/PM", or ISO datetime
+  // (-> local minutes of day). Used for read-only sources like sun times.
+  private _parseFlexibleTime(raw: unknown): number {
+    if (typeof raw === "number") return raw;
+    if (typeof raw !== "string") return NaN;
+    const t = raw.trim();
+    const m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i.exec(t);
+    if (m) {
+      let h = Number(m[1]);
+      const ap = m[3]?.toUpperCase();
+      if (ap === "PM" && h < 12) h += 12;
+      if (ap === "AM" && h === 12) h = 0;
+      return h * 60 + Number(m[2]);
+    }
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? NaN : d.getHours() * 60 + d.getMinutes();
+  }
+
+  // Read a value, optionally from an entity attribute.
+  private _value(entityId: string, attr?: string): number {
+    const s = this.hass?.states[entityId];
+    if (!s) return NaN;
+    const raw = attr ? s.attributes[attr] : s.state;
+    if (raw === undefined || raw === null) return NaN;
+    if (this._isTime()) return this._parseFlexibleTime(raw);
+    return Number(raw);
   }
 
   private _attr(entityId: string, name: string, fallback: number): number {
@@ -306,12 +347,12 @@ export class BandCard extends LitElement {
     const missing = !sA || !sB || sA.state === "unavailable" || sB.state === "unavailable";
 
     const scale = this._scale();
-    const valA = this._val(this._entA);
-    const valB = this._val(this._entB);
+    const valA = this._value(this._entA, this._attrA);
+    const valB = this._value(this._entB, this._attrB);
     const unit = this._unit();
     const nightActive = this._nightActive();
-    const showTrack = this._interaction !== "steppers";
-    const showSteppers = this._interaction !== "drag";
+    const showTrack = this._readonly || this._interaction !== "steppers";
+    const showSteppers = !this._readonly && this._interaction !== "drag";
 
     return html`
       <ha-card style="--accent:${accent}">
@@ -340,7 +381,7 @@ export class BandCard extends LitElement {
         : html`<span class="secondary"><ha-icon icon="mdi:weather-sunny" style="color:${SUN_COLOR}"></ha-icon><span>Day active</span></span>`;
     }
     if (c.current_entity) {
-      const cur = this._val(c.current_entity);
+      const cur = this._value(c.current_entity, c.current_attribute);
       return html`<span class="secondary">${isFinite(cur) ? `Now ${this._fmt(cur)}${unit}` : ""}</span>`;
     }
     return nothing;
@@ -377,18 +418,22 @@ export class BandCard extends LitElement {
           ${this._renderMarker(scale, band ? Math.min(valA, valB) : null, band ? Math.max(valA, valB) : null)}
           <div class="lbl lbl-a ${aActive ? "active" : ""}" style="left:${fA}%">${labelA}</div>
           <div class="lbl lbl-b ${bActive ? "active" : ""}" style="left:${fB}%">${labelB}</div>
-          <div
-            class="thumb thumb-a ${bActive ? "dim" : ""} ${aActive ? "ring" : ""}"
-            data-which="a"
-            style="left:${fA}%"
-            @pointerdown=${this._onDown}
-          ></div>
-          <div
-            class="thumb thumb-b ${aActive ? "dim" : ""} ${bActive ? "ring" : ""}"
-            data-which="b"
-            style="left:${fB}%"
-            @pointerdown=${this._onDown}
-          ></div>
+          ${this._readonly
+            ? nothing
+            : html`
+                <div
+                  class="thumb thumb-a ${bActive ? "dim" : ""} ${aActive ? "ring" : ""}"
+                  data-which="a"
+                  style="left:${fA}%"
+                  @pointerdown=${this._onDown}
+                ></div>
+                <div
+                  class="thumb thumb-b ${aActive ? "dim" : ""} ${bActive ? "ring" : ""}"
+                  data-which="b"
+                  style="left:${fB}%"
+                  @pointerdown=${this._onDown}
+                ></div>
+              `}
         </div>
       </div>
     `;
@@ -397,7 +442,7 @@ export class BandCard extends LitElement {
   private _renderMarker(scale: Scale, lo: number | null, hi: number | null): TemplateResult | typeof nothing {
     const c = this._config!;
     if (!c.current_entity) return nothing;
-    const cur = this._val(c.current_entity);
+    const cur = this._value(c.current_entity, c.current_attribute);
     if (!isFinite(cur)) return nothing;
     let cls = "";
     if (lo !== null && hi !== null) cls = cur >= lo && cur <= hi ? "inside" : "outside";
