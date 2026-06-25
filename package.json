@@ -1,7 +1,7 @@
 {
   "name": "lovelace-band-card",
   "version": "1.0.0",
-  "description": "Dual-thumb band / day-night / time cards and an aligned entity matrix card for Home Assistant Lovelace.",
+  "description": "Dual-thumb band / day-night / time card for Home Assistant Lovelace.",
   "type": "module",
   "scripts": {
     "build": "rollup -c",

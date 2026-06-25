@@ -1,31 +1,30 @@
-# Band Cards for Home Assistant
+# Band Card for Home Assistant
 
-Two Mushroom-styled custom Lovelace cards that rationalise paired and tabular
-entities:
+A Mushroom-styled **dual-thumb** custom Lovelace card for settings that are
+naturally a *pair*:
 
-- **`band-card`** — a dual-thumb control for things that are naturally a *pair*:
-  - **band** — a lower/upper hysteresis window (e.g. heater on/off thresholds),
-    with a filled span and an optional live marker.
-  - **daynight** — a day value and a night value for one setting, with the
-    currently-active thumb highlighted.
-  - **time** — auto-detected for `input_datetime` pairs (start/end windows) on a
-    24-hour track.
-- **`matrix-card`** — an aligned grid of entities by row × column (e.g. rooms ×
-  temperature/humidity/dewpoint). One CSS grid keeps every column lined up, and
-  it stays aligned down to phone width.
+- **band** — a lower/upper hysteresis window (e.g. heater on/off thresholds),
+  with a filled span and an optional live marker.
+- **daynight** — a day value and a night value for one setting, with the
+  currently-active thumb highlighted.
+- **time** — auto-detected for `input_datetime` pairs (start/end windows) on a
+  24-hour track.
 
 Built with Lit + TypeScript. Themed via Home Assistant / Mushroom CSS variables,
-so the cards inherit your active theme.
+so it inherits your active theme.
+
+> Looking for the aligned entity grid? That's the separate
+> [matrix-card](https://github.com/brookwarner/lovelace-matrix-card).
 
 ## Installation (HACS)
 
 1. HACS → ⋮ → **Custom repositories** → add this repo's URL, category
    **Dashboard** (Lovelace).
-2. Install **Band Cards**, then reload your browser.
-3. The resource `/hacsfiles/lovelace-band-card/band-cards.js` is added
+2. Install **Band Card**, then reload your browser.
+3. The resource `/hacsfiles/lovelace-band-card/band-card.js` is added
    automatically.
 
-## `band-card`
+## Configuration
 
 ```yaml
 type: custom:band-card
@@ -62,31 +61,11 @@ Notes:
   picks the thumb (right = upper/night, left = lower/day) so they can be pulled
   apart. For values that often coincide, `interaction: both` adds ± buttons.
 
-## `matrix-card`
-
-```yaml
-type: custom:matrix-card
-title: Climate – temperature & humidity   # optional
-columns: [Temp, RH, Dew]
-column_icons: [mdi:thermometer, mdi:water-percent, mdi:thermometer-water]
-column_colors: [red, blue, cyan]
-rows:
-  - name: Living room
-    icon: mdi:sofa
-    entities: [sensor.ths_livingroom_temperature, sensor.ths_livingroom_humidity, sensor.living_room_dewpoint]
-  - name: Attic
-    icon: mdi:home-roof
-    entities: [sensor.attic_fan_1_temperature, sensor.attic_fan_1_humidity, sensor.attic_dewpoint]
-```
-
-Each row's `entities` map left-to-right onto the `columns`. Unavailable entities
-render as `—` and dim the row.
-
 ## Development
 
 ```bash
 npm install
-npm run build      # -> dist/band-cards.js
+npm run build      # -> dist/band-card.js
 npm run watch      # rebuild on change
 ```
 

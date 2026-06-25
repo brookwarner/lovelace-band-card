@@ -5,7 +5,7 @@ import terser from "@rollup/plugin-terser";
 export default {
   input: "src/index.ts",
   output: {
-    file: "dist/band-cards.js",
+    file: "dist/band-card.js",
     format: "es",
     sourcemap: false,
   },
