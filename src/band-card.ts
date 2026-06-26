@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import {
   type HomeAssistant,
   resolveColor,
+  fireMoreInfo,
   SUN_COLOR,
   MOON_COLOR,
 } from "./ha.js";
@@ -334,6 +335,19 @@ export class BandCard extends LitElement {
     this._tipTimer = window.setTimeout(() => (this._tipShow = false), 2500);
   }
 
+  // ---- more-info -----------------------------------------------------------
+
+  private _moreInfo(entityId?: string): void {
+    if (entityId) fireMoreInfo(this, entityId);
+  }
+
+  private _onKey(ev: KeyboardEvent, entityId?: string): void {
+    if (entityId && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      this._moreInfo(entityId);
+    }
+  }
+
   // ---- render --------------------------------------------------------------
 
   protected render(): TemplateResult | typeof nothing {
@@ -354,9 +368,17 @@ export class BandCard extends LitElement {
     const showTrack = this._readonly || this._interaction !== "steppers";
     const showSteppers = !this._readonly && this._interaction !== "drag";
 
+    const headerEntity = c.current_entity || this._entA;
+
     return html`
       <ha-card style="--accent:${accent}">
-        <div class="row">
+        <div
+          class="row clickable"
+          role="button"
+          tabindex="0"
+          @click=${() => this._moreInfo(headerEntity)}
+          @keydown=${(ev: KeyboardEvent) => this._onKey(ev, headerEntity)}
+        >
           <div class="shape"><ha-icon .icon=${icon}></ha-icon></div>
           <div class="text">
             <span class="primary">${c.name || ""}</span>
@@ -416,8 +438,22 @@ export class BandCard extends LitElement {
             ? html`<div class="fill" style="left:${Math.min(fA, fB)}%;width:${Math.abs(fB - fA)}%"></div>`
             : nothing}
           ${this._renderMarker(scale, band ? Math.min(valA, valB) : null, band ? Math.max(valA, valB) : null)}
-          <div class="lbl lbl-a ${aActive ? "active" : ""}" style="left:${fA}%">${labelA}</div>
-          <div class="lbl lbl-b ${bActive ? "active" : ""}" style="left:${fB}%">${labelB}</div>
+          <div
+            class="lbl lbl-a clickable ${aActive ? "active" : ""}"
+            style="left:${fA}%"
+            role="button"
+            tabindex="0"
+            @click=${() => this._moreInfo(this._entA)}
+            @keydown=${(ev: KeyboardEvent) => this._onKey(ev, this._entA)}
+          >${labelA}</div>
+          <div
+            class="lbl lbl-b clickable ${bActive ? "active" : ""}"
+            style="left:${fB}%"
+            role="button"
+            tabindex="0"
+            @click=${() => this._moreInfo(this._entB)}
+            @keydown=${(ev: KeyboardEvent) => this._onKey(ev, this._entB)}
+          >${labelB}</div>
           ${this._readonly
             ? nothing
             : html`
@@ -467,7 +503,12 @@ export class BandCard extends LitElement {
     const cell = (which: string, val: number, icon?: string, color?: string) => html`
       <div class="stepper">
         <button @click=${() => this._onStep(which, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
-        <span class="v"
+        <span
+          class="v clickable"
+          role="button"
+          tabindex="0"
+          @click=${() => this._moreInfo(this._entFor(which))}
+          @keydown=${(ev: KeyboardEvent) => this._onKey(ev, this._entFor(which))}
           >${icon ? html`<ha-icon icon=${icon} style="color:${color}"></ha-icon>` : nothing}<span
             >${this._fmt(val)}${unit}</span
           ></span
@@ -486,6 +527,12 @@ export class BandCard extends LitElement {
   static styles = css`
     ha-card { padding: var(--mush-spacing, 12px); }
     .row { display: flex; align-items: center; gap: 12px; }
+    .clickable { cursor: pointer; }
+    .row.clickable { border-radius: 12px; outline-offset: 2px; }
+    .row.clickable:focus-visible,
+    .lbl.clickable:focus-visible,
+    .stepper .v.clickable:focus-visible { outline: 2px solid var(--accent); }
+    .lbl.clickable { border-radius: 6px; }
     .shape {
       flex: 0 0 auto;
       width: var(--mush-icon-size, 42px);

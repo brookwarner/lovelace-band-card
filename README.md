@@ -60,6 +60,11 @@ Notes:
 - **Overlapping thumbs**: when both values coincide, the first drag direction
   picks the thumb (right = upper/night, left = lower/day) so they can be pulled
   apart. For values that often coincide, `interaction: both` adds ± buttons.
+- **History**: tap a value label (or the stepper value) to open Home Assistant's
+  more-info dialog — the sheet overlay with that entity's history graph. Tapping
+  the icon/name opens it for `current_entity` if set, otherwise the lower/day
+  entity. Dragging a thumb still just edits the value. Keyboard accessible:
+  focus the label and press Enter/Space.
 
 ## Read-only mode (e.g. a daylight band)
 
