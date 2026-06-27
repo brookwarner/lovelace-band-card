@@ -264,12 +264,22 @@ export class BandCard extends LitElement {
     const scale = this._scale();
     const overlapping = Math.abs(this._val(this._entA) - this._val(this._entB)) <= scale.step + 1e-9;
     const startX = e.clientX;
+    const pointerId = e.pointerId;
     const stateObj = { which: thumb.dataset.which as string, resolved: !overlapping };
     this._dragging = stateObj.which;
-    thumb.setPointerCapture(e.pointerId);
+    // setPointerCapture is best-effort: on mobile Safari it can silently no-op
+    // for touch pointers, so we never rely on it — the move/up listeners live on
+    // window (below) and track the drag whether or not capture is granted.
+    try {
+      thumb.setPointerCapture(pointerId);
+    } catch {
+      /* ignore — window listeners handle tracking */
+    }
     thumb.style.zIndex = "4";
 
     const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      ev.preventDefault();
       if (!stateObj.resolved) {
         const dx = ev.clientX - startX;
         if (Math.abs(dx) < 3) return;
@@ -282,10 +292,15 @@ export class BandCard extends LitElement {
       this._onMove(stateObj.which, ev);
     };
     const up = (ev: PointerEvent) => {
-      thumb.releasePointerCapture(ev.pointerId);
-      thumb.removeEventListener("pointermove", move);
-      thumb.removeEventListener("pointerup", up);
-      thumb.removeEventListener("pointercancel", up);
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      try {
+        thumb.releasePointerCapture(pointerId);
+      } catch {
+        /* capture may not have been granted */
+      }
       this.renderRoot.querySelectorAll(".thumb").forEach((t) => ((t as HTMLElement).style.zIndex = ""));
       this._dragging = null;
       if (stateObj.resolved) {
@@ -294,9 +309,12 @@ export class BandCard extends LitElement {
         this.requestUpdate();
       }
     };
-    thumb.addEventListener("pointermove", move);
-    thumb.addEventListener("pointerup", up);
-    thumb.addEventListener("pointercancel", up);
+    // Listen on window (not the thumb): a touch drag quickly leaves the 26px
+    // thumb, and without reliable pointer capture the thumb would stop getting
+    // events. window always sees them, so the slider keeps tracking the finger.
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   }
 
   private _onMove(which: string, ev: PointerEvent): void {
