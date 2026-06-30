@@ -105,11 +105,6 @@ export class BandCard extends LitElement {
     return this._config!.value_type === "time" || this._entA.startsWith("input_datetime.");
   }
 
-  private _parseTime(str: string): number {
-    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(str);
-    return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
-  }
-
   // Flexible time parse: HH:MM[:SS], 12-hour "h:mm AM/PM", or ISO datetime
   // (-> local minutes of day). Used for read-only sources like sun times.
   private _parseFlexibleTime(raw: unknown): number {
@@ -162,12 +157,15 @@ export class BandCard extends LitElement {
     };
   }
 
+  // Current stored value as a number, used for dragging/stepping/clamping.
+  // In time mode this must mirror _value()'s flexible parsing, otherwise an
+  // input_datetime whose state carries a date ("2024-06-30 08:00:00"), or any
+  // value_type:time source, parses to NaN — which freezes the thumb (NaN% left)
+  // and makes _setValue refuse the write, so the slider can't be dragged.
   private _val(entityId: string): number {
     const s = this.hass?.states[entityId];
     if (!s) return NaN;
-    if (typeof s.state === "string" && /^\d{1,2}:\d{2}(:\d{2})?$/.test(s.state)) {
-      return this._parseTime(s.state);
-    }
+    if (this._isTime()) return this._parseFlexibleTime(s.state);
     return Number(s.state);
   }
 
